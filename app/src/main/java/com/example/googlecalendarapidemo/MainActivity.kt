@@ -1,15 +1,21 @@
 package com.example.googlecalendarapidemo
 
+import android.Manifest
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.provider.CalendarContract.Events
 import android.provider.CalendarContract.Reminders
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import kotlinx.android.synthetic.main.activity_main.*
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -22,22 +28,54 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         btnCreateReminder.setOnClickListener {
-
-            val date = "2021-03-21T06:51:51.542Z"
-            val formatter: DateFormat = SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.sss'Z'")
-            val dateTimeLaps : Long = formatter.parse(date).time
-            val concern = etEnterConcern.text.toString()
-            val intent  = Intent(Intent.ACTION_INSERT, Events.CONTENT_URI)
-
-            intent.putExtra(Events.TITLE, concern)
-            intent.putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, dateTimeLaps)
-            intent.putExtra(CalendarContract.EXTRA_EVENT_END_TIME, dateTimeLaps + 600000)
-            startActivity(intent)
-            // TODO use addEventToCalendar to update event in database
-//            val uri: Uri? = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            openPermissionDialog()
         }
     }
-    fun addEventToCalendar(
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            populateCalendarData()
+        } else {
+            Toast.makeText(this, "Need to provide permission", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun openPermissionDialog() {
+        if (!isFinishing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && ContextCompat.checkSelfPermission(
+                this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.READ_CALENDAR,
+                    Manifest.permission.WRITE_CALENDAR), 101)
+        } else {
+            populateCalendarData()
+        }
+    }
+
+    private fun populateCalendarData() {
+        val date = "2021-03-21T06:51:51.542Z"
+        val formatter: DateFormat = SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.sss'Z'")
+        val dateTimeLaps : Long = formatter.parse(date).time
+        val concern = etEnterConcern.text.toString()
+        val calendarEventID = addEventToCalendar(this, concern, concern, "Bangalore",
+            0, dateTimeLaps, true, isMailService = true)
+
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.data = Uri.parse(
+            "content://com.android.calendar/events/" + java.lang.String.valueOf(
+                calendarEventID
+            )
+        )
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+    }
+
+    private fun addEventToCalendar(
         context: Context, title: String?,
         addInfo: String?, place: String?, status: Int, startDate: Long,
         isRemind: Boolean, isMailService: Boolean
@@ -64,7 +102,7 @@ class MainActivity : AppCompatActivity() {
         val eventID = eventUri!!.lastPathSegment!!.toLong()
         if (isRemind) {
             val method = 1
-            val minutes = 35
+            val minutes = 60
             addAlarms(cr, eventID, minutes, method)
             //        String reminderUriString = "content://com.android.calendar/reminders";
             //        ContentValues reminderValues = new ContentValues();
