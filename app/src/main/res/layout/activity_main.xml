@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Event will be set for 2021-03-12 06:51:51"
+        android:text="Event will be set for 2021-03-21 06:51:51"
         android:textColor="#000000" />
 
     <EditText
